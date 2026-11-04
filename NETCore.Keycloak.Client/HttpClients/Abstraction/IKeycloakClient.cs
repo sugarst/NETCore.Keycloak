@@ -5,6 +5,10 @@ namespace NETCore.Keycloak.Client.HttpClients.Abstraction;
 /// </summary>
 public interface IKeycloakClient
 {
+    /// <summary>Gets explicit FGAP v2 management. Existing third-party implementations may omit this capability.</summary>
+    public IKcAdminPermissions AdminPermissions =>
+        throw new NotSupportedException("This client implementation does not provide FGAP v2 management.");
+
     /// <summary>
     /// Gets the authentication REST client for managing authentication-related operations.
     /// See <see cref="IKcAuth"/> for detailed operations.

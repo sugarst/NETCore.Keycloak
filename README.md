@@ -58,7 +58,7 @@ dotnet build NETCore.Keycloak.slnx --configuration Release
 
 Keycloak **26.8.1** is the pinned integration target for the .NET 10 client.
 The [compatibility test matrix](NETCore.Keycloak.Client.Tests/README.md#keycloak-2681-compatibility--兼容性验证)
-covers the existing API surface with a full FGAP v1 run and separate FGAP v2 security regressions.
+covers the existing API surface with a full FGAP v1 run and separate FGAP v2 management/security tests.
 Keycloak 26.8.1 为当前固定测试版本；验证范围为已有客户端 API，详见测试矩阵。
 
 > **Note:** Keycloak versions 20.x through 23.x and .NET 6.0/7.0 were supported in previous releases (v1.x). If you need support for these older versions, please use [v1.0.2](https://www.nuget.org/packages/Keycloak.NETCore.Client/1.0.2).
@@ -71,6 +71,7 @@ Keycloak 26.8.1 为当前固定测试版本；验证范围为已有客户端 API
 - 🔍 Comprehensive error handling and debugging
 - 🚦 Automated token management and renewal
 - 👥 Advanced user and group management
+- 🔐 Explicit [FGAP v2 policy, permission and organization administration](docs/fgap-v2.md), with JSON/environment configuration and preserved V1 APIs
 - 🔑 Multiple authentication flows support
 - 📈 Enterprise-grade scalability
 
@@ -190,12 +191,13 @@ Explore our comprehensive documentation for each module:
 ## 🧪 Testing
 
 The .NET 10/MSTest suite validates the existing client API against Keycloak 26.8.1, with a full
-FGAP v1 run and separate FGAP v2 security regressions. Native .NET 10 file-based applications
+FGAP v1 run and separate FGAP v2 management/security tests. Native .NET 10 file-based applications
 prepare isolated Docker Compose services and verify TRX/Cobertura reports. Python, Ansible
 and Make are no longer required.
 
 See the [Test Suite Guide](NETCore.Keycloak.Client.Tests/README.md) for configuration,
-coverage, all 178 declared client methods, dependency audits and the FGAP compatibility matrix.
+coverage, 178 existing client methods plus 15 FGAP v2 methods, dependency audits and the FGAP compatibility matrix.
+See [FGAP v2 configuration / 声明式配置](docs/fgap-v2.md) and the [JSON example](examples/fgap-v2.json).
 
 ### ⚡ Running Tests
 
@@ -204,12 +206,13 @@ Run from the repository root with the .NET 10 SDK and Docker Compose v2:
 ```bash
 dotnet run --file tools/KeycloakTestEnvironment.cs -- up
 dotnet test NETCore.Keycloak.Client.Tests/NETCore.Keycloak.Client.Tests.csproj --configuration Release \
-  --collect 'XPlat Code Coverage' --logger trx --results-directory NETCore.Keycloak.Client.Tests/obj/verification
+  --filter 'TestCategory!=FGAPV2' --collect 'XPlat Code Coverage' --logger trx \
+  --results-directory NETCore.Keycloak.Client.Tests/obj/verification
 dotnet run --file tools/VerifyTestResults.cs -- NETCore.Keycloak.Client.Tests/obj/verification --require-http-method-coverage
 dotnet run --file tools/KeycloakTestEnvironment.cs -- down
 ```
 
-For the 54 independent tests without Docker or integration credentials:
+For the independent unit tests without Docker or integration credentials:
 
 ```bash
 dotnet test NETCore.Keycloak.Client.Tests/NETCore.Keycloak.Client.Tests.csproj --filter 'TestCategory=CoverageUnit'

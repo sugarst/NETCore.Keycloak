@@ -20,14 +20,16 @@ try
     {
         ReportVerifier.VerifyAudit(audit);
     }
-    else if ( args.Length is 1 or 2 && (args.Length == 1 || args[1] == "--require-http-method-coverage") )
+    else if ( args.Length is 1 or 2 && (args.Length == 1 ||
+        args[1] is "--require-http-method-coverage" or "--require-fgap-v2-coverage") )
     {
-        ReportVerifier.Verify(args[0], args.Length == 2);
+        ReportVerifier.Verify(args[0], args.Length == 2,
+            args.Length == 2 && args[1] == "--require-fgap-v2-coverage");
     }
     else
     {
-        throw new ArgumentException("Usage: <reports-directory> [--require-http-method-coverage] " +
-            "| --self-test | --audit-json <file>");
+        throw new ArgumentException("Usage: <reports-directory> " +
+            "[--require-http-method-coverage|--require-fgap-v2-coverage] | --self-test | --audit-json <file>");
     }
 
     return 0;
@@ -42,7 +44,7 @@ internal static class ReportVerifier
 {
     private static string SourcePath([CallerFilePath] string path = "") => path;
 
-    internal static void Verify(string directory, bool requireCoverage)
+    internal static void Verify(string directory, bool requireCoverage, bool fgapV2Only = false)
     {
         var reports = Directory.GetFiles(directory, "*.trx", SearchOption.AllDirectories);
         if ( reports.Length == 0 ) throw new InvalidDataException("No TRX reports found.");
@@ -54,6 +56,7 @@ internal static class ReportVerifier
         var expected = new HashSet<(string Module, string Method)>();
         foreach ( var path in Directory.GetFiles(interfaces, "IKc*.cs") )
         {
+            if ( (Path.GetFileNameWithoutExtension(path) == "IKcAdminPermissions") != fgapV2Only ) continue;
             var module = "NETCore.Keycloak.Client.HttpClients.Implementation." +
                 Path.GetFileNameWithoutExtension(path)[1..];
             foreach ( Match match in Regex.Matches(File.ReadAllText(path), @"(?m)^\s*Task<[^;]*?>\s+(\w+Async)\s*\(") )

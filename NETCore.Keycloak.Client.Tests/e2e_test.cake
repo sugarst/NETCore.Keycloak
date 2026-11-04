@@ -24,6 +24,9 @@ Task("Test")
         {
             Configuration = configuration,
             NoBuild = true,
+            Filter = EnvironmentVariable("KC_FGAP_VERSION") == "v2"
+                ? "(TestCategory=Keycloak2681&TestCategory!=LegacyAdminPermissions)|TestCategory=FGAPV2"
+                : "TestCategory!=FGAPV2",
             Verbosity = DotNetVerbosity.Normal
         });
     });

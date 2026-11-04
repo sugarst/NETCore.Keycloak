@@ -1,0 +1,24 @@
+{
+  "version": "V2",
+  "enabled": true,
+  "policies": [
+    {
+      "name": "organization-operators",
+      "type": "group",
+      "logic": "POSITIVE",
+      "groups": [
+        { "id": "REPLACE_WITH_OPERATOR_GROUP_UUID", "extendChildren": false }
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "name": "manage-assigned-organization",
+      "resourceType": "Organizations",
+      "resources": ["REPLACE_WITH_ORGANIZATION_UUID"],
+      "scopes": ["view", "manage"],
+      "policies": ["organization-operators"],
+      "decisionStrategy": "UNANIMOUS"
+    }
+  ]
+}

@@ -25,6 +25,12 @@
 
 ## 🌟 Key Features
 
+Keycloak **26.8.1 FGAP v2** management is explicitly selectable through JSON or environment
+configuration: built-in policy CRUD, scope permission CRUD, organization-scoped permissions and
+merge-only declarations. Existing constructors retain V1. See the
+[FGAP v2 guide](../docs/fgap-v2.md)
+for configuration, supported scopes and the server feature requirements. Preview features are excluded.
+
 - 🔄 Complete Keycloak REST API integration
 - 🛡️ Robust security with OpenID Connect and OAuth 2.0
 - 📊 Built-in monitoring and performance metrics

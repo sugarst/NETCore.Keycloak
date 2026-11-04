@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using NETCore.Keycloak.Client.Exceptions;
 using NETCore.Keycloak.Client.HttpClients.Abstraction;
+using NETCore.Keycloak.Client.Models.AdminPermissions;
 
 namespace NETCore.Keycloak.Client.HttpClients.Implementation;
 
@@ -8,6 +9,9 @@ namespace NETCore.Keycloak.Client.HttpClients.Implementation;
 // ReSharper disable once InconsistentNaming
 public sealed class KeycloakClient : IKeycloakClient
 {
+    /// <inheritdoc cref="IKeycloakClient.AdminPermissions"/>
+    public IKcAdminPermissions AdminPermissions { get; }
+
     /// <inheritdoc cref="IKeycloakClient.Auth"/>
     public IKcAuth Auth { get; }
 
@@ -88,7 +92,19 @@ public sealed class KeycloakClient : IKeycloakClient
     /// </param>
     /// <exception cref="KcException">Thrown if the <paramref name="baseUrl"/> is null, empty, or contains only whitespace.</exception>
     public KeycloakClient(string baseUrl, ILogger logger, IHttpClientFactory httpClientFactory)
+        : this(baseUrl, logger, httpClientFactory, new KcAdminPermissionsConfiguration())
     {
+    }
+
+    /// <summary>Creates a client with explicit FGAP model selection; construction never applies configuration.</summary>
+    /// <param name="baseUrl">The Keycloak server URL.</param>
+    /// <param name="logger">Optional logger; the selected FGAP route is logged without credentials.</param>
+    /// <param name="httpClientFactory">Optional HTTP client factory.</param>
+    /// <param name="adminPermissions">Explicit FGAP configuration. Existing constructors default to V1.</param>
+    public KeycloakClient(string baseUrl, ILogger logger, IHttpClientFactory httpClientFactory,
+        KcAdminPermissionsConfiguration adminPermissions)
+    {
+        ArgumentNullException.ThrowIfNull(adminPermissions);
         if ( string.IsNullOrWhiteSpace(baseUrl) )
         {
             throw new KcException($"{nameof(baseUrl)} is required");
@@ -101,6 +117,7 @@ public sealed class KeycloakClient : IKeycloakClient
 
         // Define the admin API base URL for realm-specific administrative operations.
         var adminUrl = $"{baseUrl}/admin/realms";
+        AdminPermissions = new KcAdminPermissions(adminUrl, logger, httpClientFactory, adminPermissions.Version);
 
         // Initialize various Keycloak API clients with their respective base URLs, logger, and HTTP client factory.
         Auth = new KcAuth($"{baseUrl}/realms", logger, httpClientFactory);

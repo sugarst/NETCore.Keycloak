@@ -26,7 +26,12 @@ Task("Test")
         var slnPath = MakeAbsolute(new FilePath($"{slnContext}/NETCore.Keycloak.slnx"));
 
         // Define the dotCover cover command with XML report output
-        var testCommand = $"cover --xml-report-output=dotCover.Output.xml -- test {slnPath} --configuration {configuration} -l:\"console;verbosity=normal\" --no-restore --no-build";
+        var filter = EnvironmentVariable("KC_FGAP_VERSION") == "v2"
+            ? "(TestCategory=Keycloak2681&TestCategory!=LegacyAdminPermissions)|TestCategory=FGAPV2"
+            : "TestCategory!=FGAPV2";
+        var testCommand = $"cover --xml-report-output=dotCover.Output.xml -- test {slnPath} " +
+            $"--configuration {configuration} --filter \"{filter}\" " +
+            "-l:\"console;verbosity=normal\" --no-restore --no-build";
 
         // Configure dotCover settings
         var processSettings = new ProcessSettings

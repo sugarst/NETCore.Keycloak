@@ -124,6 +124,15 @@ executed. The same native tool provisions FGAP v2 for its separate 31 applicable
 The report verifier has 22 native self-tests. GitHub's Ubuntu 24.04 jobs still require upstream
 approval and must pass before merge.
 
+After adding the FGAP v2 administration module, local verification on the same .NET 10 /
+Keycloak 26.8.1 / PostgreSQL 16 setup passes **452 V1 tests**, **45 V2 tests** and **72 independent
+unit tests** (the unit tests are included in the V1 total), without failures or skips. The extension
+adds 18 unit cases and 14 real management integration cases. Execution gates cover the existing
+178 methods and all 15 new V2 methods. The coverage percentages in the preceding table are the
+pre-extension baseline, not measurements of the new module. The new V2 cases also verify
+resource/scope filtering and permit/deny evaluations across all five supported resource types.
+新增模块测试、声明式示例和使用边界见 [FGAP v2 指南](../docs/fgap-v2.md)。
+
 The native-tool migration removed the 26-package Python inventory. FOSSA scan 128535862
 reported `License scan passed` with 15 direct dependencies, replacing the previous seven flagged
 license issues. This public scan is limited to one dependency level; the CLI profiles and CI NuGet
@@ -148,7 +157,7 @@ initialization, before their test methods run.
 From the repository root, run:
 
 ```powershell
-dotnet test NETCore.Keycloak.Client.Tests/NETCore.Keycloak.Client.Tests.csproj --framework net10.0 --configuration Release --logger trx
+dotnet test NETCore.Keycloak.Client.Tests/NETCore.Keycloak.Client.Tests.csproj --framework net10.0 --configuration Release --filter 'TestCategory!=FGAPV2' --logger trx
 ```
 
 In Visual Studio, rebuild the test project after generating or updating the configuration, then
@@ -189,16 +198,18 @@ From the repository root on a dedicated Docker test host:
 ```bash
 dotnet run --file tools/KeycloakTestEnvironment.cs -- up --fgap v1
 dotnet test NETCore.Keycloak.Client.Tests/NETCore.Keycloak.Client.Tests.csproj --configuration Release \
-  --logger 'trx;LogFileName=full.trx' --results-directory NETCore.Keycloak.Client.Tests/obj/verification/v1 \
+  --filter 'TestCategory!=FGAPV2' --logger 'trx;LogFileName=full.trx' \
+  --results-directory NETCore.Keycloak.Client.Tests/obj/verification/v1 \
   --collect 'XPlat Code Coverage'
 dotnet run --file tools/VerifyTestResults.cs -- NETCore.Keycloak.Client.Tests/obj/verification/v1 --require-http-method-coverage
 dotnet run --file tools/KeycloakTestEnvironment.cs -- down
 
 dotnet run --file tools/KeycloakTestEnvironment.cs -- up --fgap v2
 dotnet test NETCore.Keycloak.Client.Tests/NETCore.Keycloak.Client.Tests.csproj --configuration Release \
-  --filter 'TestCategory=Keycloak2681&TestCategory!=LegacyAdminPermissions' --logger 'trx;LogFileName=fgap-v2.trx' \
+  --filter '(TestCategory=Keycloak2681&TestCategory!=LegacyAdminPermissions)|TestCategory=FGAPV2' \
+  --logger 'trx;LogFileName=fgap-v2.trx' --collect 'XPlat Code Coverage' \
   --results-directory NETCore.Keycloak.Client.Tests/obj/verification/v2
-dotnet run --file tools/VerifyTestResults.cs -- NETCore.Keycloak.Client.Tests/obj/verification/v2
+dotnet run --file tools/VerifyTestResults.cs -- NETCore.Keycloak.Client.Tests/obj/verification/v2 --require-fgap-v2-coverage
 dotnet run --file tools/KeycloakTestEnvironment.cs -- down
 ```
 
@@ -207,14 +218,17 @@ in that directory. In automated jobs, always run `down` in a cleanup/finally ste
 The full v1 profile also exercises the client scope-mapping aliases, role-container evaluation,
 node registration/deletion, empty adapter topology checks, revocation propagation, composite-role
 removal and legacy `/management/permissions` APIs. The coverage gate requires execution of every
-declared method in all 13 client interfaces, including async state machines; it does not imply 100% line
+declared method in the 13 existing client interfaces, including async state machines; the V2 gate checks
+all 15 methods in `IKcAdminPermissions`. These gates do not imply 100% line
 or branch coverage. 未执行的已有 HTTP 方法会导致 CI 失败，避免仅凭部分测试通过宣称完整验证。
 
 The legacy `/management/permissions` APIs are FGAP v1 APIs;
 enabling v2 does not convert them into FGAP v2 configuration APIs. The v2 profile repeats
 the dedicated authentication/security regressions and applicable API round trips, including
 allowing profile management while explicitly denying password reset. Only the explicit
-`LegacyAdminPermissions` category is excluded from this profile. It is not a replacement for the full v1 run.
+`LegacyAdminPermissions` category is excluded from the existing regressions. The new `FGAPV2` category
+adds seven built-in policy providers, all five resource types/23 scopes, declarative application and
+delegated organization boundaries. It is not a replacement for the full v1 run.
 完整 v1 测试与 v2 安全回归互为补充；CI 要求两者都通过，且不允许失败或跳过。
 
 `.github/workflows/keycloak_2681.yml` runs both profiles independently of Sonar credentials,
@@ -238,13 +252,14 @@ The default remains `ClientSecretPost`, including public clients with no secret.
 
 ### Declared API inventory / 公开接口清单
 
-The current client exposes **13 modules and 178 public asynchronous methods**. Method counts
+The current client exposes **14 modules and 193 public asynchronous methods**: the existing
+13 modules/178 methods plus the new FGAP v2 module/15 methods. Method counts
 include convenience operations and alternate forms; they are not counts of unique HTTP routes.
 The earlier figure of 167 counted only ordinary Task-returning methods in Cobertura and omitted
 11 async state machines. The verification script now checks the declared interfaces and maps
 those state machines back to their methods. This corrects the counting/verification scope;
 it does not add 11 new APIs.
-当前按公开接口声明核对为 178 个方法，包含组合操作和不同形式的封装，不等于 178 条独立服务端路由。
+当前按公开接口声明核对为 193 个方法，包含组合操作和不同形式的封装，不等于独立服务端路由数。
 
 Except for Auth, paths below are relative to `/admin/realms/{realm}`.
 
@@ -263,6 +278,7 @@ Except for Auth, paths below are relative to `/admin/realms/{realm}`.
 | ScopeMappings | 20 | Assign/remove realm/client roles and query assigned/available/effective scope mappings for both reusable client scopes and individual clients. | `/client-scopes/{id}/scope-mappings; /clients/{id}/scope-mappings` |
 | ProtocolMappers | 14 | Single/bulk creation, list/read/update/delete and protocol-filtered lists for reusable client scopes and individual clients. | `/client-scopes/{id}/protocol-mappers; /clients/{id}/protocol-mappers` |
 | Organizations | 6 | Create/read/update/delete/list/count organizations; domain fields are read/written as part of organization representations. | `/organizations` |
+| AdminPermissions | 15 | Explicit V2 realm switch, built-in policy CRUD, permission CRUD/search/evaluation, organization-scoped permission creation and declarative merge. | `/clients/{admin-permissions-uuid}/authz/resource-server/policy; /permission/scope; /policy/evaluate` |
 
 Additional ASP.NET integration covers named JWT options, issuer/audience/lifetime validation,
 realm/client role claims, dynamic `resource#scope` policies, admin token caching/renewal and
@@ -274,8 +290,9 @@ Support boundaries for acceptance:
 - Organization invitations, members, organization groups and identity-provider links are not wrapped.
 - Realm-wide CRUD/configuration, identity-provider management, authorization-code/PKCE/PAR,
   token introspection, Standard Token Exchange and inbound backchannel logout handlers are not wrapped.
-- Legacy `/management/permissions` configuration belongs to FGAP v1. V2 authorization decisions are
-  regression-tested; raw REST fixture setup is not a public FGAP v2 administration API.
+- Legacy `/management/permissions` configuration belongs to FGAP v1. The new `AdminPermissions` module
+  manages supported V2 policies/permissions without migrating V1 data. JSON/environment selection,
+  safety boundaries and the 23 supported scopes are documented in the [FGAP v2 guide](../docs/fgap-v2.md).
 - Protocol-filtered mapper APIs contain SAML selection, but the SAML branch has not been independently
   integration-tested. This is not a claim of SAML login/brokering support.
 - Node registration/deletion and empty adapter-topology checks/pushes are tested. Real remote Java
